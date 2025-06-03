@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dragon Predictor</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #0b0f3b; /* deep dark navy blue */
+      overflow: hidden;
+      color: white;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+
+    /* DRAGON MODS name fixed top center */
+    .dragon-title {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 40px;
+      font-weight: bold;
+      color: cyan;
+      text-shadow: 0 0 15px cyan;
+      user-select: none;
+      z-index: 20;
+    }
+
+    .box {
+      background: rgba(0, 255, 255, 0.1);
+      padding: 140px 100px;
+      border-radius: 20px;
+      text-align: center;
+      box-shadow: 0 0 50px cyan;
+      width: 600px;
+      color: cyan;
+      z-index: 10;
+    }
+
+    #result {
+      font-size: 60px;
+      margin: 40px 0;
+      color: cyan;
+      font-weight: bold;
+      text-shadow: 0 0 20px cyan;
+    }
+
+    .textview {
+      font-size: 24px;
+      font-weight: bold;
+      color: #ccc;
+      margin: 20px 0;
+    }
+
+    button {
+      padding: 22px 60px;
+      font-size: 22px;
+      background-color: cyan;
+      color: black;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 0 15px cyan;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: #00ffffcc;
+    }
+
+    button:disabled {
+      background-color: #555;
+      cursor: not-allowed;
+      color: #222;
+      box-shadow: none;
+    }
+
+    .login-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #111;
+      padding: 60px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 0 30px cyan;
+      width: 400px;
+      z-index: 10;
+      color: cyan;
+    }
+
+    input {
+      display: block;
+      margin: 14px auto;
+      padding: 12px;
+      width: 90%;
+      font-size: 18px;
+      border-radius: 8px;
+      border: 1px solid cyan;
+      background: #000;
+      color: cyan;
+      font-weight: bold;
+    }
+
+    input::placeholder {
+      color: #666;
+    }
+
+    #predictor {
+      display: none;
+      z-index: 10;
+    }
+
+    .container {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg"></canvas>
+
+  <div class="dragon-title">DRAGON MODS</div>
+
+  <!-- LOGIN -->
+  <div class="login-box" id="login">
+    <h2>Login to DRAGON</h2>
+    <input type="text" id="username" placeholder="Username" autocomplete="off" />
+    <input type="password" id="password" placeholder="Password" autocomplete="off" />
+    <button id="loginBtn">Login</button>
+  </div>
+
+  <!-- PREDICTOR -->
+  <div id="predictor" class="container">
+    <div class="box">
+      <div class="textview" id="textview2">00:00</div>
+      <div id="result">-</div>
+      <button id="predictBtn">Predict</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("bg");
+    const ctx = canvas.getContext("2d");
+    let particles = [];
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    window.onresize = resize;
+    resize();
+
+    function createParticles() {
+      particles = [];
+      for (let i = 0; i < 100; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: Math.random() * 1 - 0.5,
+          vy: Math.random() * 1 - 0.5
+        });
+      }
+    }
+
+    function drawParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fillStyle = "black"; // black dots
+        ctx.fill();
+      }
+
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = "rgba(0,0,0,0.2)";
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    createParticles();
+    setInterval(drawParticles, 30);
+
+    let lastPeriod = "";
+    const predictBtn = document.getElementById("predictBtn");
+
+    function getCurrentPeriod() {
+      const now = new Date();
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const istOffset = 5.5 * 60 * 60000;
+      const istTime = new Date(utc + istOffset);
+
+      const start = new Date(istTime.getFullYear(), istTime.getMonth(), istTime.getDate(), 5, 29, 0, 0);
+      const elapsedMinutes = Math.floor((istTime - start) / 60000);
+      const periodCount = 589 + Math.max(0, elapsedMinutes);
+
+      const dateStr = istTime.toISOString().slice(0, 10).replace(/-/g, '');
+      return dateStr + '100001' + String(periodCount).padStart(4, '0');
+    }
+
+    function updateTimeViews() {
+      const now = new Date();
+      const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+      const istOffset = 5.5 * 60 * 60000;
+      const istTime = new Date(utc + istOffset);
+
+      const seconds = istTime.getSeconds();
+      const remaining = 60 - seconds;
+
+      document.getElementById("textview2").textContent = `00:${String(remaining).padStart(2, '0')}`;
+
+      const fullPeriod = getCurrentPeriod();
+      if (fullPeriod !== lastPeriod) {
+        predictBtn.disabled = false;
+        document.getElementById("result").textContent = "-";
+      }
+    }
+
+    function showToast(msg) {
+      let toast = document.createElement("div");
+      toast.textContent = msg;
+      toast.style.position = "fixed";
+      toast.style.bottom = "40px";
+      toast.style.left = "50%";
+      toast.style.transform = "translateX(-50%)";
+      toast.style.background = "cyan";
+      toast.style.color = "black";
+      toast.style.padding = "12px 24px";
+      toast.style.borderRadius = "8px";
+      toast.style.fontSize = "18px";
+      toast.style.zIndex = "1000";
+      toast.style.boxShadow = "0 0 10px rgba(0,255,255,0.5)";
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function login() {
+      const u = document.getElementById("username").value.trim();
+      const p = document.getElementById("password").value.trim();
+      if (u === "DRAGON" && p === "MODS") {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("predictor").style.display = "block";
+      } else {
+        alert("Invalid credentials.");
+      }
+    }
+
+    function predict() {
+      const currentPeriod = getCurrentPeriod();
+      if (currentPeriod === lastPeriod) {
+        showToast("Wait for next period ⏳");
+        predictBtn.disabled = true;
+        return;
+      }
+      const rand = Math.floor(Math.random() * 10);
+      const predicted = rand <= 4 ? "𝚂𝙼𝙰𝙻𝙻" : "𝙱𝙸𝙶";
+      const reversed = predicted === "𝚂𝙼𝙰𝙻𝙻" ? "𝙱𝙸𝙶" : "𝚂𝙼𝙰𝙻𝙻";
+      document.getElementById("result").textContent = reversed;
+      lastPeriod = currentPeriod;
+      predictBtn.disabled = true;
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', login);
+    predictBtn.addEventListener('click', predict);
+
+    setInterval(updateTimeViews, 1000);
+  </script>
+</body>
+</html>
